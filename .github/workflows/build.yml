@@ -6,7 +6,7 @@ on: [push, workflow_dispatch]
 
 jobs:
   unit:
-    name: QEMU
+    name: Build and Upload
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -36,4 +36,10 @@ jobs:
             -v $(pwd):/${{ github.workspace }} \
             --platform ${{ matrix.arch }} \
             golang:1.23.2 \
-            bash -c "go run /${{ github.workspace }}/main.go"
+            bash -c "go build -o output/${{ github.event_name }}_${GOOS}_${GOARCH}${ext}"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: go-executables
+          path: output/
