@@ -1,50 +1,48 @@
-name: Build and Upload
-
-on: [push, workflow_dispatch]
+on: [push, pull_request]
 
 jobs:
   build:
-    name: Build and Upload
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        goarch: [amd64, arm64, arm]
+        include:
+          - os: ubuntu-latest
+            goarch: amd64
+          - os: ubuntu-latest
+            goarch: arm64
+          - os: ubuntu-latest
+            goarch: arm
+          - os: macos-latest
+            goarch: amd64
+          - os: macos-latest
+            goarch: arm64
+          - os: windows-latest
+            goarch: amd64
+          - os: windows-latest
+            goarch: arm64
+
     steps:
-      - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
-
-      - name: Set up Go environment
-        run: |
-          sudo apt-get install -y gcc
-          go version
-
-      - name: Build for multiple platforms
-        run: |
-          mkdir -p output
-          GOOS=linux GOARCH=amd64 go build -o output/FolderSum main.go
-          GOOS=linux GOARCH=arm64 go build -o output/FolderSum_arm64 main.go
-          GOOS=linux GOARCH=arm GOARM=7 go build -o output/FolderSum_armv7 main.go
-          GOOS=windows GOARCH=amd64 go build -o output/FolderSum.exe main.go
-          GOOS=darwin GOARCH=amd64 go build -o output/FolderSum_darwin main.go
-          GOOS=darwin GOARCH=arm64 go build -o output/FolderSum_darwin_arm64 main.go
-
-      - name: List output directory
-        run: ls -la output/
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - uses: actions/checkout@v3
         with:
-          tag_name: ${{ github.run_number }}
-          release_name: Release ${{ github.run_number }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release Assets
+          submodules: recursive
+          
+      - name: Make
         run: |
-          for file in output/*; do
-            echo "Uploading $file"
-            gh release upload ${{ steps.create_release.outputs.upload_url }} "$file" --clobber
-          done
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            GOOS=windows go build -o output/FolderSum_${{ matrix.goarch }}.exe main.go
+          else
+            GOOS=${{ matrix.os == 'macos-latest' && 'darwin' || 'linux' }} go build -o output/FolderSum_${{ matrix.goarch }} main.go
+          fi
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./output/FolderSum_${{ matrix.goarch }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          tag: ${{ github.ref }}
+          file_glob: true
+          overwrite: true
