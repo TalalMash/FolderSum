@@ -1,49 +1,50 @@
-#Copy from https://github.com/t-katsumura/golang-multiplatform-build/tree/main
-
-name: QEMU
+name: Build and Upload
 
 on: [push, workflow_dispatch]
 
 jobs:
-  unit:
+  build:
     name: Build and Upload
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          - linux/amd64
-          - linux/arm64
-          # - linux/riscv64  # Not supported by go official image.
-          # - linux/ppc64le
-          # - linux/s390x
-          # - linux/386      # Runtime error occurs.
-          # - linux/mips64le # Runtime error occurs.
-          # - linux/mips64   # Not supported by go official image.
-          - linux/arm/v7
-          # - linux/arm/v6   # Not supported by go official image.
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: ${{ matrix.arch }}
-      - name: Docker run
-        run: |
-          docker run \
-            --rm \
-            -v $(pwd):/${{ github.workspace }} \
-            --platform ${{ matrix.arch }} \
-            golang:1.23.2 \
-            bash -c "mkdir -p /${{ github.workspace }}/output && go build -o /${{ github.workspace }}/output/${{ github.event_name }}_${GOOS}_${GOARCH}${ext} /${{ github.workspace }}/main.go"
 
+      - name: Set up Go environment
+        run: |
+          sudo apt-get install -y gcc
+          go version
+
+      - name: Build for multiple platforms
+        run: |
+          mkdir -p output
+          GOOS=linux GOARCH=amd64 go build -o output/FolderSum main.go
+          GOOS=linux GOARCH=arm64 go build -o output/FolderSum_arm64 main.go
+          GOOS=linux GOARCH=arm GOARM=7 go build -o output/FolderSum_armv7 main.go
+          GOOS=windows GOARCH=amd64 go build -o output/FolderSum.exe main.go
+          GOOS=darwin GOARCH=amd64 go build -o output/FolderSum_darwin main.go
+          GOOS=darwin GOARCH=arm64 go build -o output/FolderSum_darwin_arm64 main.go
 
       - name: List output directory
         run: ls -la output/
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
         with:
-          name: go-executables
-          path: output/
+          tag_name: ${{ github.run_number }}
+          release_name: Release ${{ github.run_number }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Assets
+        run: |
+          for file in output/*; do
+            echo "Uploading $file"
+            gh release upload ${{ steps.create_release.outputs.upload_url }} "$file" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
