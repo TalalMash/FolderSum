@@ -59,4 +59,8 @@ func main() {
 
 	finalHash := combinedHash.Sum(nil)
 	fmt.Printf("Checksum of all file checksums: %s\n", hex.EncodeToString(finalHash))
+
+	// FEAT: Drag and drop folder to executable
+	fmt.Println("Press Enter to exit...")
+	fmt.Scanln()
 }

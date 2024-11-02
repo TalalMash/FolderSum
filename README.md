@@ -2,7 +2,11 @@ Combined files checksum tool that works on Termux, iSH, Windows, MacOS, and Linu
 
 Usage
 ```
-FolderSum(.exe) <folder-path>
+./FolderSum <folder-path>
+
+or 
+
+Drag and drop a folder or file to the executable.
 ```
 Example
 ```
@@ -15,4 +19,4 @@ Checksum of all file checksums: c3b02d6fb72d73bd69943aaad86254bf0d4bf60cd752f867
 
 Motive: Had corrupted photos during phone to desktop transfer, no phone app calculates a folder checksum.
 
-Termux and iSH scripting is very limited and dependency heavy.
+Termux and iSH scripting was limiting and dependency heavy.
