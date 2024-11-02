@@ -36,7 +36,11 @@ jobs:
             -v $(pwd):/${{ github.workspace }} \
             --platform ${{ matrix.arch }} \
             golang:1.23.2 \
-            bash -c "mkdir -p output && go build -o output/${{ github.event_name }}_${GOOS}_${GOARCH}${ext} ${{ github.workspace }}/main.go"
+            bash -c "mkdir -p /${{ github.workspace }}/output && go build -o /${{ github.workspace }}/output/${{ github.event_name }}_${GOOS}_${GOARCH}${ext} /${{ github.workspace }}/main.go"
+
+
+      - name: List output directory
+        run: ls -la output/
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v3
