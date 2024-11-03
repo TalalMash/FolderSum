@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 func main() {
@@ -17,39 +18,24 @@ func main() {
 	}
 
 	folderPath := os.Args[1]
-	combinedHash := sha256.New()
 
-	var totalFiles int
-	var processedFiles int
+	var fileChecksums []string
 
 	err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() {
-			totalFiles++
+		if info.IsDir() {
+			return nil
 		}
-		return nil
-	})
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
+		fileChecksum, err := checksumFile(path)
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() {
-			data, err := ioutil.ReadFile(path)
-			if err != nil {
-				return err
-			}
-			fileHash := sha256.Sum256(data)
-			combinedHash.Write(fileHash[:])
-			processedFiles++
-			fmt.Printf("Processed %d of %d files: %s\n", processedFiles, totalFiles, path)
-		}
+
+		fileChecksums = append(fileChecksums, fileChecksum)
+		fmt.Printf("Processed file: %s, checksum: %s\n", path, fileChecksum)
 		return nil
 	})
 
@@ -57,10 +43,31 @@ func main() {
 		log.Fatal(err)
 	}
 
-	finalHash := combinedHash.Sum(nil)
-	fmt.Printf("Checksum of all file checksums: %s\n", hex.EncodeToString(finalHash))
+	sort.Strings(fileChecksums)
 
-	// FEAT: Drag and drop folder to executable
+	combinedChecksum := sha256.New()
+	for _, chk := range fileChecksums {
+		combinedChecksum.Write([]byte(chk))
+	}
+
+	finalHash := combinedChecksum.Sum(nil)
+	fmt.Printf("Final checksum of combined file checksums: %s\n", hex.EncodeToString(finalHash))
+
 	fmt.Println("Press Enter to exit...")
 	fmt.Scanln()
+}
+
+func checksumFile(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
