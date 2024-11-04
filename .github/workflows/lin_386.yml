@@ -1,4 +1,4 @@
-name: Build and Release ARM64
+name: Build and Release i386
 
 on: [push, pull_request]
 
